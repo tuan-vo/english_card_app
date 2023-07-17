@@ -1,8 +1,11 @@
 import 'dart:math';
 
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:english_card_app/packages/quote/qoute_model.dart';
 import 'package:english_card_app/packages/quote/quote.dart';
+import 'package:english_card_app/pages/all_words_page.dart';
 import 'package:english_card_app/pages/control_page.dart';
+import 'package:english_card_app/pages/share_keys.dart';
 import 'package:english_card_app/widgets/app_button.dart';
 import 'package:english_words/english_words.dart';
 import 'package:english_card_app/models/english_today.dart';
@@ -10,6 +13,7 @@ import 'package:english_card_app/values/app_assets.dart';
 import 'package:english_card_app/values/app_colors.dart';
 import 'package:english_card_app/values/app_style.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -44,15 +48,18 @@ class _HomePageState extends State<HomePage> {
     return newList;
   }
 
-  getEnglishToday() {
+  getEnglishToday() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int len = prefs.getInt(ShareKeys.counter) ?? 5;
     quote = Quotes().getRandom().content!;
     List<String> newList = [];
-    List<int> rans = fixedListRandom(len: 5, max: nouns.length);
+    List<int> rans = fixedListRandom(len: len, max: nouns.length);
     rans.forEach((index) {
       newList.add(nouns[index]);
     });
-
-    words = newList.map((e) => getQuote(e)).toList();
+    setState(() {
+      words = newList.map((e) => getQuote(e)).toList();
+    });
   }
 
   EnglishToday getQuote(String noun) {
@@ -66,8 +73,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     _pageController = PageController(viewportFraction: 0.9);
-    getEnglishToday();
     super.initState();
+    getEnglishToday();
   }
 
   @override
@@ -107,7 +114,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             Container(
-              height: size.height * 2 / 3,
+              height: size.height * 1.8 / 3,
               child: PageView.builder(
                   controller: _pageController,
                   onPageChanged: (index) {
@@ -180,8 +187,10 @@ class _HomePageState extends State<HomePage> {
                                     ])),
                             Padding(
                               padding: const EdgeInsets.only(top: 24),
-                              child: Text(
+                              child: AutoSizeText(
                                 '"$quote"',
+                                maxFontSize: 26,
+                                maxLines: 8,
                                 style: AppStyles.h4.copyWith(
                                     letterSpacing: 1,
                                     color: AppColors.textColor),
@@ -192,22 +201,25 @@ class _HomePageState extends State<HomePage> {
                   }),
             ),
             //indicator
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: SizedBox(
-                height: size.height * 1 / 11,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 30),
-                  child: ListView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 5,
-                      itemBuilder: (context, index) {
-                        return buildIndicator(index == _currentIndex, size);
-                      }),
-                ),
-              ),
-            )
+            _currentIndex >= 5
+                ? buildShowMore()
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SizedBox(
+                      height: size.height * 1 / 11,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 30),
+                        child: ListView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: 5,
+                            itemBuilder: (context, index) {
+                              return buildIndicator(
+                                  index == _currentIndex, size);
+                            }),
+                      ),
+                    ),
+                  )
           ],
         ),
       ),
@@ -260,7 +272,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget buildIndicator(bool isActive, Size size) {
-    return Container(
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 300),
+      curve: Curves.bounceInOut,
       height: 8,
       margin: const EdgeInsets.symmetric(horizontal: 12),
       width: isActive ? size.width * 1 / 5 : 24,
@@ -271,6 +285,33 @@ class _HomePageState extends State<HomePage> {
             BoxShadow(
                 color: Colors.black38, offset: Offset(2, 3), blurRadius: 3)
           ]),
+    );
+  }
+
+  Widget buildShowMore() {
+    return Container(
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Material(
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+        color: AppColors.primaryColor,
+        elevation: 4,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => AllWordsPage(words: words)));
+          },
+          splashColor: Colors.black12,
+          borderRadius: BorderRadius.all(Radius.circular(24)),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            child: Text(
+              'Show more',
+              style: AppStyles.h5,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
